@@ -187,6 +187,8 @@ final class EditView: NSView, NSTextInputClient, TextPlaneDelegate {
         wantsBestResolutionOpenGLSurface = true
         let glLayer = TextPlaneLayer()
         glLayer.textDelegate = self
+        // Make sure the GL layer is visible
+        glLayer.zPosition = 1.0
         layer = glLayer
         registerForDraggedTypes([kUTTypeFileURL as NSPasteboard.PasteboardType])
     }
