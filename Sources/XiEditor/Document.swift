@@ -157,8 +157,6 @@ class Document: NSDocument {
         xiCore.sendRpcAsync("plugin", params: params, callback: nil)
     }
 
-    /// Reads the buffer from core and decides how it relates to its file. The text, not
-    /// `isDocumentEdited`, is the truth: that flag is updated on a later main-queue hop.
     func sessionBuffer() throws -> Session.Buffer {
         guard let identifier = coreViewIdentifier else {
             return Session.Buffer(content: fileURL.map { .clean(path: $0.path) } ?? .untitled(text: ""), viewport: nil)
@@ -175,8 +173,6 @@ class Document: NSDocument {
         return Session.Buffer(content: content, viewport: viewport)
     }
 
-    /// Queues the suspended text behind the view's creation. Core answers the insert with
-    /// `pristine: false`, which marks the document edited.
     func apply(_ action: RestoreAction) {
         if let text = action.replacement, !text.isEmpty {
             sendRpcAsync("select_all", params: [])
@@ -184,10 +180,10 @@ class Document: NSDocument {
         }
         guard let viewport = action.viewport else { return }
         if let caret = viewport.caret {
-            // Core answers with scroll_to, which brings the caret into view.
             sendRpcAsync("gesture", params: ["line": caret.line, "col": caret.column, "ty": "point_select"])
         } else {
-            // A caret on the top line makes core scroll there; `restoredTopLine` then aligns it to the top edge.
+            // Core answers the inserted text with a scroll_to that overrides any earlier scroll, so the
+            // top line is restored by putting the caret there and realigning when that scroll_to arrives.
             editViewController?.restoredTopLine = viewport.topLine
             sendRpcAsync("gesture", params: ["line": viewport.topLine, "col": 0, "ty": "point_select"])
         }

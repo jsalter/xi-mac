@@ -1,5 +1,4 @@
 #!/bin/bash
-# Smoke test for hot exit against the built XiEditor.app.
 # Usage: hot-exit-smoke.sh /path/to/XiEditor.app
 # Requires Accessibility access for the shell that runs it (System Events keystrokes).
 set -euo pipefail
@@ -30,14 +29,11 @@ key() { ui "keystroke \"$1\" using command down"; sleep 0.6; }
 type_text() { ui "keystroke \"$1\""; sleep 0.4; }
 window_names() { ui "get name of every window"; }
 window_count() { ui "count windows"; }
-# Position and size of every window, front to back, as a flat list of numbers.
 frames() { ui "get {position, size} of every window"; }
-# The tab bar's selection flags for window $1, or "none" when it is not in a tab group.
 tab_values() {
   ui "if (count of tab groups of window $1) is 0 then return \"none\"
 get value of every radio button of tab group 1 of window $1"
 }
-# True when two comma-separated number lists match element-wise within $3 (default 1).
 same_numbers() {
   awk -v a="$1" -v b="$2" -v tol="${3:-1}" 'BEGIN {
     n = split(a, x, /, */); m = split(b, y, /, */)
@@ -45,7 +41,6 @@ same_numbers() {
     for (i = 1; i <= n; i++) { d = x[i] - y[i]; if (d < 0) d = -d; if (d > tol) exit 1 }
   }'
 }
-# Scrolls window 1's text with the wheel, without touching the caret.
 scroll_wheel_down() {
   local p z
   p=$(ui "get position of window 1"); z=$(ui "get size of window 1")
@@ -55,8 +50,7 @@ scroll_wheel_down() {
     -e "for (var i = 0; i < 6; i++) { $.CGEventPost(0, $.CGEventCreateScrollWheelEvent(null, 1, 1, -40)); delay(0.1) }"
   sleep 1
 }
-# Clicks just inside the top edge of window 1's text area (System Events' own click is an AXPress that
-# does not reach the editor view), which puts the caret at the end of the first visible line.
+# System Events' own click is an AXPress that does not reach the editor view.
 click_top_of_text() {
   local p
   p=$(ui "get position of scroll area 1 of window 1")
@@ -87,9 +81,7 @@ sleep 1
 
 echo "--- first session"
 launch
-# The app opens one untitled window on launch; type into it.
 type_text "untitled scratch text"
-# Open the named file in a new window and edit it.
 key o
 sleep 1
 ui "keystroke \"g\" using {command down, shift down}"
@@ -148,7 +140,6 @@ key t
 type_text "tab two"
 key t
 type_text "tab three"
-# Select the middle tab so neither the first nor the last position can pass by default.
 ui "key code 33 using {command down, shift down}"; sleep 0.8
 ui "set position of window 1 to {120, 140}"
 ui "set size of window 1 to {700, 500}"
@@ -191,11 +182,9 @@ wait_for_exit || fail "tab group second quit prompted"
 echo "--- viewport session"
 rm -f "$SESSION"
 launch
-# 200 lines, so scrolling stops short of the end of the text, each starting with a two-byte character so a column in bytes differs from one in characters.
 LC_ALL=en_US.UTF-8 awk 'BEGIN { for (i = 1; i <= 200; i++) print "éL" i }' | LC_ALL=en_US.UTF-8 pbcopy
 key v
 sleep 1
-# Line 58 (index 57), after its first character: byte column 2.
 ui "key code 126 using command down"; sleep 0.6
 ui "repeat 57 times
 key code 125
@@ -210,7 +199,6 @@ type_text "ZZ"
 LINE=$(front_contents | sed -n 58p)
 [ "$LINE" = "éZZL58" ] || fail "caret restored to the wrong place: line 58 is '$LINE', expected 'éZZL58'"
 pass "caret restored to line 58, byte column 2"
-# Caret to the top, then scroll the view away from it with the wheel, so no caret is visible at quit.
 ui "key code 126 using command down"; sleep 0.6
 scroll_wheel_down
 key q

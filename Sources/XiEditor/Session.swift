@@ -14,18 +14,14 @@
 
 import Foundation
 
-/// Everything needed to bring the app back as it was after a quit.
 struct Session: Codable, Equatable {
     static let currentVersion = 1
 
     var version: Int = Session.currentVersion
-    /// Front to back: index 0 is the key window's group. May be empty.
     var groups: [TabGroup]
 
     struct TabGroup: Codable, Equatable {
-        /// The group's window frame in screen coordinates.
         var frame: CGRect
-        /// In tab order. Never empty.
         var tabs: [Buffer]
         var selectedTab: Int
     }
@@ -41,7 +37,6 @@ struct Session: Codable, Equatable {
         case dirty(path: String, onDisk: DiskStamp, text: String)
     }
 
-    /// Size and modification date of the file a dirty buffer was derived from.
     enum DiskStamp: Codable, Equatable {
         case missing
         case present(byteCount: UInt64, modified: Date)
@@ -49,7 +44,6 @@ struct Session: Codable, Equatable {
 
     struct Viewport: Codable, Equatable {
         var topLine: Int
-        /// Nil when the caret was not within the visible lines.
         var caret: Caret?
     }
 
@@ -101,14 +95,10 @@ extension Session.Content {
     }
 }
 
-/// What to do for one buffer, computed from the stored session and the current disk state.
 struct RestoreAction: Equatable {
-    /// What `new_view` gets; nil is untitled.
     var path: String?
-    /// Text to `select_all` and `insert` once the view exists.
     var replacement: String?
     var viewport: Session.Viewport?
-    /// Set when the user has to decide what this buffer becomes before it is opened.
     var conflict: Conflict?
 
     enum Conflict: Equatable {
@@ -123,8 +113,6 @@ enum ConflictChoice {
 }
 
 extension RestoreAction {
-    /// The actions that carry out `choice`. The viewport describes the suspended text, so it goes with
-    /// the suspended text and is dropped when that text is.
     func resolved(_ choice: ConflictChoice) -> [RestoreAction] {
         guard conflict != nil else { return [self] }
         let suspended = RestoreAction(path: path, replacement: replacement, viewport: viewport, conflict: nil)
@@ -159,21 +147,17 @@ struct FileSystemProbe: DiskProbing {
 extension Session {
     typealias PlannedGroup = (frame: CGRect, actions: [RestoreAction], selectedTab: Int)
 
-    /// Decides each buffer's action. A clean buffer whose file is gone is dropped (and a group that
-    /// empties with it). A dirty buffer whose file changed since the suspend is marked as a conflict, so a
-    /// later save cannot silently overwrite the newer file; one whose file is missing reopens at its path.
     func restorePlan(disk: DiskProbing) -> [PlannedGroup] {
         return groups.compactMap { group in
             var actions = [RestoreAction]()
-            var selected = 0
+            var selectedSurvivor = 0
             for (index, buffer) in group.tabs.enumerated() {
-                // If the selected tab is dropped, this is the index of the next survivor.
-                if index == group.selectedTab { selected = actions.count }
+                if index == group.selectedTab { selectedSurvivor = actions.count }
                 guard let action = Session.action(for: buffer, disk: disk) else { continue }
                 actions.append(action)
             }
             guard !actions.isEmpty else { return nil }
-            return (group.frame, actions, min(selected, actions.count - 1))
+            return (group.frame, actions, min(selectedSurvivor, actions.count - 1))
         }
     }
 
@@ -192,11 +176,9 @@ extension Session {
         }
     }
 
-    /// Returns `frame` if it is visible on some screen, otherwise a frame of the same size (limited to the
-    /// first screen's size) at the top left of the first screen. `visibleFrames` lists the main screen first.
-    static func fit(_ frame: CGRect, to visibleFrames: [CGRect]) -> CGRect {
-        guard let main = visibleFrames.first,
-            !visibleFrames.contains(where: { $0.intersects(frame) })
+    static func fit(_ frame: CGRect, to visibleFramesMainFirst: [CGRect]) -> CGRect {
+        guard let main = visibleFramesMainFirst.first,
+            !visibleFramesMainFirst.contains(where: { $0.intersects(frame) })
             else { return frame }
         let size = CGSize(width: min(frame.width, main.width), height: min(frame.height, main.height))
         return CGRect(origin: CGPoint(x: main.minX, y: main.maxY - size.height), size: size)
@@ -206,7 +188,6 @@ extension Session {
 struct SessionStore {
     let fileURL: URL
 
-    /// Writes atomically so a crash mid-write leaves the previous session intact.
     func save(_ session: Session) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
@@ -217,8 +198,6 @@ struct SessionStore {
         try data.write(to: fileURL, options: .atomic)
     }
 
-    /// Nil when there is no usable session. A file that fails to decode or validate is renamed aside
-    /// rather than deleted, so the user's text is never destroyed by a bug here.
     func load() -> Session? {
         guard let data = try? Data(contentsOf: fileURL) else { return nil }
         do {

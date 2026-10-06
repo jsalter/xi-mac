@@ -181,11 +181,8 @@ class EditViewController: NSViewController, EditViewDataSource, FindDelegate, Sc
     // visible scroll region
     var visibleLines: LineRange = 0..<0
 
-    /// Set when a session is restored with no caret in view: the line that core is about to scroll to,
-    /// which should end up at the top of the view rather than at its bottom edge.
     var restoredTopLine: Int?
 
-    /// The top visible line and the first caret among the visible lines, for the session.
     func sessionViewport() -> Session.Viewport {
         let cache = lines.locked()
         let caret = visibleLines.lazy.compactMap { line in
@@ -396,7 +393,6 @@ class EditViewController: NSViewController, EditViewDataSource, FindDelegate, Sc
         }
     }
 
-    /// The inverse of `EditView.yOffsetToLine`: puts `line` at the top of the view.
     private func scrollToTopLine(_ line: Int) {
         let y = CGFloat(line) * textMetrics.linespace + textMetrics.topPadding + editView.frame.origin.y
         scrollView.contentView.scroll(to: NSPoint(x: scrollOrigin.x, y: y))

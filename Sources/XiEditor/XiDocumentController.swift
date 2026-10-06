@@ -23,9 +23,7 @@ class XiDocumentController: NSDocumentController, AlertPresenting {
 
     var hotExit: HotExit?
 
-    /// The quit gate. AppKit reviews unsaved documents here before it asks the app delegate whether
-    /// to terminate, so this is where a quit becomes a suspend. The stock review runs only when the
-    /// session could not be saved, so unsaved text is never dropped silently.
+    // AppKit runs this review before it asks the app delegate whether to terminate, so the quit gate is here.
     override func reviewUnsavedDocuments(withAlertTitle title: String?, cancellable: Bool, delegate: Any?,
                                          didReviewAllSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
         switch hotExit?.suspend() {
@@ -194,8 +192,6 @@ class XiDocumentController: NSDocumentController, AlertPresenting {
         fatalError("Xi does not currently support document duplication")
     }
 
-    /// Opens a window for a buffer from a suspended session. `completion` runs once core has answered
-    /// `new_view`, successfully or not.
     @discardableResult
     func restoreDocument(_ action: RestoreAction, completion: @escaping () -> Void) throws -> Document {
         let document = try Document(type: defaultType ?? "")

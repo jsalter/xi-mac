@@ -42,7 +42,6 @@ class SessionTests: XCTestCase {
         return try JSONDecoder().decode(Session.self, from: json.data(using: .utf8)!)
     }
 
-    // MARK: - Codable
 
     func testDecodesLiteralFixtureForAllContentCases() throws {
         let json = """
@@ -94,7 +93,6 @@ class SessionTests: XCTestCase {
         XCTAssertThrowsError(try decode("{\"version\":2,\"groups\":[]}"))
     }
 
-    // MARK: - restorePlan
 
     func testUntitledIgnoresDisk() {
         let plan = session([.untitled(text: "scratch")]).restorePlan(disk: FakeDisk(stamps: [:]))
@@ -144,7 +142,6 @@ class SessionTests: XCTestCase {
         }
     }
 
-    // MARK: - resolved
 
     let viewport = Session.Viewport(topLine: 7, caret: Session.Caret(line: 8, column: 1))
 
@@ -213,7 +210,6 @@ class SessionTests: XCTestCase {
         XCTAssertEqual(["front", "back"], plan.map { $0.actions[0].replacement })
     }
 
-    // MARK: - fit
 
     func testFitKeepsVisibleFrame() {
         let screens = [CGRect(x: 0, y: 0, width: 1000, height: 800)]
@@ -238,7 +234,6 @@ class SessionTests: XCTestCase {
         XCTAssertEqual(CGRect(x: 0, y: 0, width: 1000, height: 800), Session.fit(huge, to: screens))
     }
 
-    // MARK: - SessionStore
 
     var directory: URL!
 
@@ -299,7 +294,6 @@ class SessionTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
     }
 
-    // MARK: - FileSystemProbe
 
     func testProbeReportsMissingAndPresent() throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: nil)

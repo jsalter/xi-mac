@@ -22,12 +22,9 @@ struct TextUnreadableError: LocalizedError {
     }
 }
 
-/// Makes quitting a suspend: `suspend()` writes every window's buffer into the session store, and
-/// `resume()` on the next launch builds the windows back.
 final class HotExit {
     enum Phase {
         case dormant
-        /// Restored documents that have not yet been given a core view.
         case restoring(pendingViews: Int)
         case live
     }
@@ -47,8 +44,6 @@ final class HotExit {
         self.documents = documents
     }
 
-    /// Writes the session unless the app is not live. Until every restored document has its core view the
-    /// text of some buffers cannot be read, and the stored session is exactly the state being restored.
     func suspend() -> Outcome {
         guard case .live = phase else { return .suspended }
         do {
@@ -61,7 +56,6 @@ final class HotExit {
         }
     }
 
-    /// Runs once and never writes the store.
     func resume() {
         guard case .dormant = phase else { return }
         guard let session = store.load() else {
@@ -73,7 +67,8 @@ final class HotExit {
         let total = plan.reduce(0) { $0 + $1.actions.count }
         phase = total == 0 ? .live : .restoring(pendingViews: total)
         let screens = NSScreen.screens.map { $0.visibleFrame }
-        for group in plan.reversed() {
+        let backToFront = plan.reversed()
+        for group in backToFront {
             var windows = [NSWindow]()
             for action in group.actions {
                 do {
@@ -87,12 +82,9 @@ final class HotExit {
         }
     }
 
-    /// Joins `windows` into one native tab group in order, then shows it. Called back to front, so the
-    /// first group ends up frontmost.
     private func arrange(_ windows: [NSWindow], selected: Int, frame: CGRect) {
         guard let anchor = windows.first else { return }
         if #available(OSX 10.12, *) {
-            // Each tab goes right after the previous one, which keeps the stored order.
             var previous = anchor
             for window in windows.dropFirst() {
                 previous.addTabbedWindow(window, ordered: .above)
@@ -128,7 +120,6 @@ final class HotExit {
         return window.windowController?.document as? Document
     }
 
-    /// The document windows sharing `window`'s native tab group, in tab order.
     private func tabs(of window: NSWindow) -> [NSWindow] {
         guard #available(OSX 10.12, *), let tabbed = window.tabbedWindows else { return [window] }
         return tabbed.filter { document(of: $0) != nil }

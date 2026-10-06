@@ -15,8 +15,6 @@
 import XCTest
 @testable import XiEditor
 
-/// Proves, against a real xi-core, the core behavior hot exit depends on: text can be put into a view
-/// without touching its file, and read back exactly, with every earlier edit already applied.
 class SessionRoundTripTests: XCTestCase {
 
     var directory: URL!

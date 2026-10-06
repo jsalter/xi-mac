@@ -185,7 +185,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return !hotExit.restoredAnyWindow
     }
 
-    /// Runs the restore once. The test host must neither restore nor overwrite the user's session.
     private func resumeSession() {
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
             hotExit.resume()
