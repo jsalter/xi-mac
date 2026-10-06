@@ -48,7 +48,11 @@ final class HotExit {
     }
 
     func suspend() -> Outcome {
-        guard case .live = phase else { return .suspended }
+        switch phase {
+        case .live: break
+        case .restoring: return .refused(reason: "the previous session is still being restored")
+        case .dormant, .suspended: return .suspended
+        }
         do {
             let session = try capture()
             try session.validate()
