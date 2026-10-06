@@ -76,7 +76,11 @@ class SessionRoundTripTests: XCTestCase {
 
     func replaceContents(of view: ViewIdentifier, with text: String) {
         xiCore.sendRpcAsync("edit", params: ["method": "select_all", "params": [], "view_id": view], callback: nil)
-        proxy(for: view).insert(chars: text)
+        if text.isEmpty {
+            proxy(for: view).deleteBackward()
+        } else {
+            proxy(for: view).insert(chars: text)
+        }
     }
 
     func testReplacingNamedFileContentsReadsBackAndLeavesFileUntouched() throws {
@@ -119,5 +123,20 @@ class SessionRoundTripTests: XCTestCase {
 
         XCTAssertEqual("text", xiCore.contents(of: view))
         XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+
+    func testEmptyingNamedFileContentsReadsBackEmptyAndLeavesFileUntouched() throws {
+        let file = directory.appendingPathComponent("named.txt")
+        let original = "line one\nline two\n"
+        try original.write(to: file, atomically: true, encoding: .utf8)
+        let view = newView(path: file.path)
+
+        dirtyUpdate = expectation(description: "update with pristine == false")
+        dirtyUpdate?.assertForOverFulfill = false
+        replaceContents(of: view, with: "")
+
+        XCTAssertEqual("", xiCore.contents(of: view))
+        wait(for: [dirtyUpdate!], timeout: 5)
+        XCTAssertEqual(original, try String(contentsOf: file, encoding: .utf8))
     }
 }

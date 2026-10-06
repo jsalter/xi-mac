@@ -177,9 +177,9 @@ class Document: NSDocument {
     }
 
     func apply(_ action: RestoreAction) {
-        if let text = action.replacement, !text.isEmpty {
+        if let text = action.replacement {
             sendRpcAsync("select_all", params: [])
-            sendRpcAsync("insert", params: ["chars": text])
+            sendRpcAsync(text.isEmpty ? "delete_backward" : "insert", params: text.isEmpty ? [] : ["chars": text])
         }
         guard let viewport = action.viewport else { return }
         if let caret = viewport.caret {
