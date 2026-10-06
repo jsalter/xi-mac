@@ -37,12 +37,35 @@ tab_values() {
   ui "if (count of tab groups of window $1) is 0 then return \"none\"
 get value of every radio button of tab group 1 of window $1"
 }
+# True when two comma-separated number lists match element-wise within $3 (default 1).
 same_numbers() {
-  awk -v a="$1" -v b="$2" 'BEGIN {
+  awk -v a="$1" -v b="$2" -v tol="${3:-1}" 'BEGIN {
     n = split(a, x, /, */); m = split(b, y, /, */)
     if (n == 0 || n != m) exit 1
-    for (i = 1; i <= n; i++) { d = x[i] - y[i]; if (d < 0) d = -d; if (d > 1) exit 1 }
+    for (i = 1; i <= n; i++) { d = x[i] - y[i]; if (d < 0) d = -d; if (d > tol) exit 1 }
   }'
+}
+# Scrolls window 1's text with the wheel, without touching the caret.
+scroll_wheel_down() {
+  local p z
+  p=$(ui "get position of window 1"); z=$(ui "get size of window 1")
+  osascript -l JavaScript -e "ObjC.import('CoreGraphics')" \
+    -e "var p = '$p'.split(', ').map(Number), z = '$z'.split(', ').map(Number)" \
+    -e "$.CGWarpMouseCursorPosition($.CGPointMake(p[0] + z[0] / 2, p[1] + z[1] / 2)); delay(0.3)" \
+    -e "for (var i = 0; i < 6; i++) { $.CGEventPost(0, $.CGEventCreateScrollWheelEvent(null, 1, 1, -40)); delay(0.1) }"
+  sleep 1
+}
+# Clicks just inside the top edge of window 1's text area (System Events' own click is an AXPress that
+# does not reach the editor view), which puts the caret at the end of the first visible line.
+click_top_of_text() {
+  local p
+  p=$(ui "get position of scroll area 1 of window 1")
+  osascript -l JavaScript -e "ObjC.import('CoreGraphics')" \
+    -e "var p = '$p'.split(', ').map(Number), pt = $.CGPointMake(p[0] + 120, p[1] + 8)" \
+    -e "$.CGWarpMouseCursorPosition(pt); delay(0.2)" \
+    -e "$.CGEventPost(0, $.CGEventCreateMouseEvent(null, 1, pt, 0)); delay(0.05)" \
+    -e "$.CGEventPost(0, $.CGEventCreateMouseEvent(null, 2, pt, 0))"
+  sleep 0.5
 }
 front_contents() { pbcopy < /dev/null; key a; key c; sleep 0.3; pbpaste; }
 
@@ -161,6 +184,50 @@ ui "key code 30 using {command down, shift down}"; sleep 0.4
 ui "key code 30 using {command down, shift down}"; sleep 0.8
 [ "$(front_contents)" = "tab three" ] || fail "third tab text not restored in tab order: $(front_contents)"
 pass "tabs restored in order"
+
+key q
+wait_for_exit || fail "tab group second quit prompted"
+
+echo "--- viewport session"
+rm -f "$SESSION"
+launch
+# 200 lines, so scrolling stops short of the end of the text, each starting with a two-byte character so a column in bytes differs from one in characters.
+LC_ALL=en_US.UTF-8 awk 'BEGIN { for (i = 1; i <= 200; i++) print "éL" i }' | LC_ALL=en_US.UTF-8 pbcopy
+key v
+sleep 1
+# Line 58 (index 57), after its first character: byte column 2.
+ui "key code 126 using command down"; sleep 0.6
+ui "repeat 57 times
+key code 125
+delay 0.03
+end repeat"
+ui "key code 124"; sleep 0.8
+key q
+wait_for_exit || fail "viewport quit prompted"
+
+launch
+type_text "ZZ"
+LINE=$(front_contents | sed -n 58p)
+[ "$LINE" = "éZZL58" ] || fail "caret restored to the wrong place: line 58 is '$LINE', expected 'éZZL58'"
+pass "caret restored to line 58, byte column 2"
+# Caret to the top, then scroll the view away from it with the wheel, so no caret is visible at quit.
+ui "key code 126 using command down"; sleep 0.6
+scroll_wheel_down
+key q
+wait_for_exit || fail "scrolled quit prompted"
+TOP_LINE=$(plutil -extract groups.0.tabs.0.viewport.topLine raw -o - "$SESSION")
+echo "stored top line: $TOP_LINE"
+[ "$TOP_LINE" -gt 0 ] || fail "the wheel did not scroll the view"
+plutil -extract groups.0.tabs.0.viewport.caret raw -o - "$SESSION" >/dev/null 2>&1 && fail "a caret was stored although none was visible"
+
+launch
+click_top_of_text
+type_text "QQ"
+EXPECTED_LINE=$((TOP_LINE + 1))
+CONTENTS=$(front_contents)
+LINE=$(printf '%s\n' "$CONTENTS" | sed -n "${EXPECTED_LINE}p")
+[ "$LINE" = "éL${EXPECTED_LINE}QQ" ] || fail "first visible line after relaunch is not line $EXPECTED_LINE: line $EXPECTED_LINE is '$LINE'; marker is on line $(printf '%s\n' "$CONTENTS" | grep -n QQ | head -1)"
+pass "top line restored without a visible caret (line $EXPECTED_LINE)"
 
 key q
 wait_for_exit || fail "final quit prompted"

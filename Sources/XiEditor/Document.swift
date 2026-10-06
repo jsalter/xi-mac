@@ -164,22 +164,33 @@ class Document: NSDocument {
             return Session.Buffer(content: fileURL.map { .clean(path: $0.path) } ?? .untitled(text: ""), viewport: nil)
         }
         guard let text = xiCore.contents(of: identifier) else { throw TextUnreadableError(name: displayName) }
-        guard let url = fileURL else { return Session.Buffer(content: .untitled(text: text), viewport: nil) }
+        let viewport = editViewController?.sessionViewport()
+        guard let url = fileURL else { return Session.Buffer(content: .untitled(text: text), viewport: viewport) }
         let content: Session.Content
         if let onDisk = try? Data(contentsOf: url), onDisk == Data(text.utf8) {
             content = .clean(path: url.path)
         } else {
             content = .dirty(path: url.path, onDisk: FileSystemProbe().stamp(of: url.path), text: text)
         }
-        return Session.Buffer(content: content, viewport: nil)
+        return Session.Buffer(content: content, viewport: viewport)
     }
 
     /// Queues the suspended text behind the view's creation. Core answers the insert with
     /// `pristine: false`, which marks the document edited.
     func apply(_ action: RestoreAction) {
-        guard let text = action.replacement, !text.isEmpty else { return }
-        sendRpcAsync("select_all", params: [])
-        sendRpcAsync("insert", params: ["chars": text])
+        if let text = action.replacement, !text.isEmpty {
+            sendRpcAsync("select_all", params: [])
+            sendRpcAsync("insert", params: ["chars": text])
+        }
+        guard let viewport = action.viewport else { return }
+        if let caret = viewport.caret {
+            // Core answers with scroll_to, which brings the caret into view.
+            sendRpcAsync("gesture", params: ["line": caret.line, "col": caret.column, "ty": "point_select"])
+        } else {
+            // A caret on the top line makes core scroll there; `restoredTopLine` then aligns it to the top edge.
+            editViewController?.restoredTopLine = viewport.topLine
+            sendRpcAsync("gesture", params: ["line": viewport.topLine, "col": 0, "ty": "point_select"])
+        }
     }
 
     func sendWillScroll(first: Int, last: Int) {
