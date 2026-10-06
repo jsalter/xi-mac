@@ -378,6 +378,9 @@ class EditViewController: NSViewController, EditViewDataSource, FindDelegate, Sc
 
         DispatchQueue.main.async { [weak self] in
             self?.document.updateChangeCount(hasNoUnsavedChanges ? .changeCleared : .changeDone)
+            if hasNoUnsavedChanges, let path = self?.document.fileURL?.path {
+                self?.document.diskStamp = FileSystemProbe().stamp(of: path)
+            }
             
             // Display the document's edited status in the window and tab titles.
             if let window = self?.document.windowControllers.first as? XiWindowController {

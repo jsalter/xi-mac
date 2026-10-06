@@ -27,6 +27,7 @@ final class HotExit {
         case dormant
         case restoring(pendingViews: Int)
         case live
+        case suspended
     }
 
     enum Outcome {
@@ -38,6 +39,8 @@ final class HotExit {
     private let documents: XiDocumentController
     private(set) var phase = Phase.dormant
     private(set) var restoredAnyWindow = false
+    /// Buffers core could not reopen at launch. They stay in the next session instead of being lost.
+    private var unrestored = [RestoreAction]()
 
     init(store: SessionStore, documents: XiDocumentController) {
         self.store = store
@@ -50,6 +53,7 @@ final class HotExit {
             let session = try capture()
             try session.validate()
             try store.save(session)
+            phase = .suspended
             return .suspended
         } catch {
             return .refused(reason: error.localizedDescription)
@@ -72,10 +76,12 @@ final class HotExit {
             var windows = [NSWindow]()
             for action in group.actions {
                 do {
-                    let document = try documents.restoreDocument(action) { [weak self] in self?.documentIsReady() }
+                    let document = try documents.restoreDocument(action) { [weak self] opened in
+                        self?.documentIsReady(action, opened: opened)
+                    }
                     if let window = document.windowControllers.first?.window { windows.append(window) }
                 } catch {
-                    documentIsReady()
+                    documentIsReady(action, opened: false)
                 }
             }
             arrange(windows, selected: group.selectedTab, frame: Session.fit(group.frame, to: screens))
@@ -99,7 +105,8 @@ final class HotExit {
         front.setFrame(frame, display: true)
     }
 
-    private func documentIsReady() {
+    private func documentIsReady(_ action: RestoreAction, opened: Bool) {
+        if !opened { unrestored.append(action) }
         guard case .restoring(let pending) = phase else { return }
         phase = pending > 1 ? .restoring(pendingViews: pending - 1) : .live
     }
@@ -112,6 +119,10 @@ final class HotExit {
             grouped.formUnion(members)
             let buffers = try members.compactMap { try document(of: $0)?.sessionBuffer() }
             groups.append(Session.TabGroup(frame: window.frame, tabs: buffers, selectedTab: selectedIndex(of: window, in: members)))
+        }
+        let frame = NSRectFromString(UserDefaults.standard.string(forKey: USER_DEFAULTS_NEW_WINDOW_FRAME)!)
+        for action in unrestored {
+            groups.append(Session.TabGroup(frame: frame, tabs: [action.buffer], selectedTab: 0))
         }
         return Session(groups: groups)
     }

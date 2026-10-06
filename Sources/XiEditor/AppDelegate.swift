@@ -17,6 +17,7 @@ import Cocoa
 let USER_DEFAULTS_THEME_KEY = "io.xi-editor.XiEditor.settings.theme"
 let USER_DEFAULTS_NEW_WINDOW_FRAME = "io.xi-editor.XiEditor.settings.preferredWindowFrame"
 let XI_CONFIG_DIR = "XI_CONFIG_DIR"
+let XCTEST_CONFIGURATION_FILE_PATH = "XCTestConfigurationFilePath"
 let PREFERENCES_FILE_NAME = "preferences.xiconfig"
 
 class BoolToControlStateValueTransformer: ValueTransformer {
@@ -170,11 +171,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hotExit = HotExit(store: SessionStore(fileURL: defaultConfigDirectory.appendingPathComponent("session.json")),
                           documents: documentController)
         documentController.hotExit = hotExit
-
+        
         // Set CLI Menu Title
         renameCliToggle()
     }
-
+    
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         resumeSession()
     }
@@ -185,8 +186,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return !hotExit.restoredAnyWindow
     }
 
+    // AppKit reviews unsaved documents only when some document is edited, so a quit with every
+    // buffer clean reaches the session store from here instead.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        _ = hotExit.suspend()
+        return .terminateNow
+    }
+
     private func resumeSession() {
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+        if ProcessInfo.processInfo.environment[XCTEST_CONFIGURATION_FILE_PATH] == nil {
             hotExit.resume()
         }
     }

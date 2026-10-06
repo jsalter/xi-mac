@@ -21,27 +21,6 @@ class XiDocumentController: NSDocumentController, AlertPresenting {
     /// Lookup used when routing RPCs to views.
     fileprivate var openViews = [ViewIdentifier: Document]()
 
-    var hotExit: HotExit?
-
-    // AppKit runs this review before it asks the app delegate whether to terminate, so the quit gate is here.
-    override func reviewUnsavedDocuments(withAlertTitle title: String?, cancellable: Bool, delegate: Any?,
-                                         didReviewAllSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
-        switch hotExit?.suspend() {
-        case .suspended?:
-            guard let delegate = delegate as AnyObject?, let selector = didReviewAllSelector,
-                let method = class_getMethodImplementation(object_getClass(delegate), selector) else { return }
-            typealias DidReviewAll = @convention(c) (AnyObject, Selector, NSDocumentController, Bool, UnsafeMutableRawPointer?) -> Void
-            unsafeBitCast(method, to: DidReviewAll.self)(delegate, selector, self, true, contextInfo)
-        case .refused(let reason)?:
-            super.reviewUnsavedDocuments(withAlertTitle: "Couldn't suspend: \(reason)", cancellable: cancellable,
-                                         delegate: delegate, didReviewAllSelector: didReviewAllSelector,
-                                         contextInfo: contextInfo)
-        case nil:
-            super.reviewUnsavedDocuments(withAlertTitle: title, cancellable: cancellable, delegate: delegate,
-                                         didReviewAllSelector: didReviewAllSelector, contextInfo: contextInfo)
-        }
-    }
-
     override init() {
         super.init()
         self.setup()
@@ -96,6 +75,27 @@ class XiDocumentController: NSDocumentController, AlertPresenting {
     @objc func didLeaveFullscreen(_ notification: Notification) {
         if let window = notification.object as? XiWindow {
             window.isFullscreen = false
+        }
+    }
+
+    var hotExit: HotExit?
+
+    // AppKit runs this review before it asks the app delegate whether to terminate, so the quit gate is here.
+    override func reviewUnsavedDocuments(withAlertTitle title: String?, cancellable: Bool, delegate: Any?,
+                                         didReviewAllSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
+        switch hotExit?.suspend() {
+        case .suspended?:
+            guard let delegate = delegate as AnyObject?, let selector = didReviewAllSelector,
+                let method = class_getMethodImplementation(object_getClass(delegate), selector) else { return }
+            typealias DidReviewAll = @convention(c) (AnyObject, Selector, NSDocumentController, Bool, UnsafeMutableRawPointer?) -> Void
+            unsafeBitCast(method, to: DidReviewAll.self)(delegate, selector, self, true, contextInfo)
+        case .refused(let reason)?:
+            super.reviewUnsavedDocuments(withAlertTitle: "Couldn't suspend: \(reason)", cancellable: cancellable,
+                                         delegate: delegate, didReviewAllSelector: didReviewAllSelector,
+                                         contextInfo: contextInfo)
+        case nil:
+            super.reviewUnsavedDocuments(withAlertTitle: title, cancellable: cancellable, delegate: delegate,
+                                         didReviewAllSelector: didReviewAllSelector, contextInfo: contextInfo)
         }
     }
 
@@ -193,7 +193,7 @@ class XiDocumentController: NSDocumentController, AlertPresenting {
     }
 
     @discardableResult
-    func restoreDocument(_ action: RestoreAction, completion: @escaping () -> Void) throws -> Document {
+    func restoreDocument(_ action: RestoreAction, completion: @escaping (Bool) -> Void) throws -> Document {
         let document = try Document(type: defaultType ?? "")
         let url = action.path.map { URL(fileURLWithPath: $0) }
         document.fileURL = url
@@ -208,7 +208,7 @@ class XiDocumentController: NSDocumentController, AlertPresenting {
         return document
     }
 
-    func setupDocument(_ document: Document, forUrl url: URL?, completion: @escaping () -> Void = {}) {
+    func setupDocument(_ document: Document, forUrl url: URL?, completion: @escaping (Bool) -> Void = { _ in }) {
         // we nil out this field to opt out of having NSDocument check for changes on disk when saving;
         // we (theoretically) do that check in xi-core.
         document.fileModificationDate = nil
@@ -219,11 +219,12 @@ class XiDocumentController: NSDocumentController, AlertPresenting {
                     let viewIdentifier = result as! String
                     self.setIdentifier(viewIdentifier, forDocument: document)
                     document.coreViewIdentifier = viewIdentifier
+                    completion(true)
                 case .error(let error):
                     document.close()
                     self.showAlert(with: error.message)
+                    completion(false)
                 }
-                completion()
             }
         }
     }

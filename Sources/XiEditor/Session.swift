@@ -106,6 +106,22 @@ struct RestoreAction: Equatable {
     }
 }
 
+extension RestoreAction {
+    /// The buffer this action would have opened, for carrying it into the next session.
+    var buffer: Session.Buffer {
+        let content: Session.Content
+        switch (path, replacement) {
+        case (let path?, let text?):
+            content = .dirty(path: path, onDisk: FileSystemProbe().stamp(of: path), text: text)
+        case (let path?, nil):
+            content = .clean(path: path)
+        case (nil, let text):
+            content = .untitled(text: text ?? "")
+        }
+        return Session.Buffer(content: content, viewport: viewport)
+    }
+}
+
 enum ConflictChoice {
     case keepSuspendedEdits
     case useVersionOnDisk

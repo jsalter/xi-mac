@@ -62,6 +62,23 @@ click_top_of_text() {
   sleep 0.5
 }
 front_contents() { pbcopy < /dev/null; key a; key c; sleep 0.3; pbpaste; }
+open_file() {
+  key o
+  sleep 1
+  ui "keystroke \"g\" using {command down, shift down}"
+  sleep 0.6
+  ui "keystroke \"$1\""
+  ui "keystroke return"
+  sleep 0.6
+  ui "keystroke return"
+  sleep 1.5
+}
+alert_buttons() { ui "get name of every button of window 1"; }
+launch_without_focus() {
+  open -a "$APP"
+  for _ in $(seq 40); do pgrep -x XiEditor >/dev/null && break; sleep 0.25; done
+  sleep 2
+}
 
 launch() {
   open -a "$APP"
@@ -82,15 +99,7 @@ sleep 1
 echo "--- first session"
 launch
 type_text "untitled scratch text"
-key o
-sleep 1
-ui "keystroke \"g\" using {command down, shift down}"
-sleep 0.6
-ui "keystroke \"$NAMED\""
-ui "keystroke return"
-sleep 0.6
-ui "keystroke return"
-sleep 1.5
+open_file "$NAMED"
 type_text "EDITED "
 sleep 0.5
 echo "windows before quit: $(window_names)"
@@ -219,4 +228,91 @@ pass "top line restored without a visible caret (line $EXPECTED_LINE)"
 
 key q
 wait_for_exit || fail "final quit prompted"
+
+echo "--- clean quit session"
+launch
+key w
+sleep 0.8
+[ "$(ui 'count sheets of window 1')" = "1" ] || fail "Cmd-W on a dirty buffer no longer prompts"
+pass "Cmd-W still prompts for a dirty buffer"
+ui 'click button "Delete" of sheet 1 of window 1'
+sleep 0.8
+key q
+wait_for_exit || fail "clean quit prompted"
+[ "$(cat "$SESSION")" = '{"groups":[],"version":1}' ] || fail "quitting with every window closed did not store an empty session, so the old one would come back: $(head -c 400 "$SESSION")"
+pass "clean quit replaces the session with an empty one"
+launch
+[ "$(window_count)" = "1" ] || fail "expected the default untitled window, got $(window_names)"
+pass "closed-everything session relaunches to one untitled window"
+
+echo "--- conflict session"
+CONFLICT="$WORK/conflict.txt"
+printf 'original\n' > "$CONFLICT"
+open_file "$CONFLICT"
+type_text "MINE "
+sleep 0.5
+printf 'theirs\n' > "$CONFLICT"
+sleep 0.5
+key q
+wait_for_exit || fail "conflict quit prompted"
+[ "$(cat "$CONFLICT")" = "theirs" ] || fail "conflict file was written by quit"
+launch_without_focus
+for _ in $(seq 20); do alert_buttons >/dev/null 2>&1 && break; sleep 0.5; done
+BUTTONS=$(alert_buttons)
+echo "alert buttons: $BUTTONS"
+[ "$BUTTONS" = "Keep Suspended Edits, Use Version on Disk, Keep Both" ] || fail "no conflict alert for a file changed on disk while suspended (buttons: $BUTTONS)"
+pass "file changed on disk while suspended raises the conflict alert"
+ui "click button \"Keep Both\" of window 1"
+sleep 2
+ui "set frontmost to true"
+TABS=$(ui "get name of every radio button of tab group 1 of window 1")
+echo "tabs after keep both: $TABS"
+case "$TABS" in *"conflict.txt"*"Untitled"*) ;; *) fail "keep both did not open the disk version and an untitled copy as tabs: $TABS";; esac
+FOUND_DISK=0; FOUND_MINE=0
+for i in 1 2; do
+  ui "click radio button $i of tab group 1 of window 1"
+  sleep 0.5
+  c=$(front_contents)
+  case "$c" in "theirs"*) FOUND_DISK=1 ;; "MINE original"*) FOUND_MINE=1 ;; esac
+done
+[ "$FOUND_DISK" = 1 ] || fail "keep both lost the version on disk"
+[ "$FOUND_MINE" = 1 ] || fail "keep both lost the suspended edits"
+pass "keep both restores the disk version and the suspended edits"
+[ "$(cat "$CONFLICT")" = "theirs" ] || fail "conflict file was written by relaunch"
+key q
+wait_for_exit || fail "post-conflict quit prompted"
+
+echo "--- unreadable file session"
+LOCKED="$WORK/locked.txt"
+printf 'locked\n' > "$LOCKED"
+launch
+open_file "$LOCKED"
+type_text "KEEP "
+sleep 0.5
+key q
+wait_for_exit || fail "locked quit prompted"
+chmod 000 "$LOCKED"
+launch_without_focus
+for _ in $(seq 20); do alert_buttons >/dev/null 2>&1 && break; sleep 0.5; done
+echo "alert buttons: $(alert_buttons)"
+ui "click button 1 of window 1"
+sleep 1.5
+ui "set frontmost to true"
+key q
+wait_for_exit || fail "quit after a failed restore prompted"
+chmod 644 "$LOCKED"
+grep -q "KEEP locked" "$SESSION" || fail "the buffer that failed to open was dropped from the next session"
+pass "a buffer core could not reopen stays in the session"
+launch
+FOUND_KEEP=0
+for i in $(seq 1 "$(window_count)"); do
+  ui "perform action \"AXRaise\" of window $i" || true
+  sleep 0.4
+  case "$(front_contents)" in "KEEP locked"*) FOUND_KEEP=1 ;; esac
+done
+[ "$FOUND_KEEP" = 1 ] || fail "the once-unreadable buffer did not come back after the file became readable"
+pass "the once-unreadable buffer comes back on the next launch"
+[ "$(cat "$LOCKED")" = "locked" ] || fail "locked file was written"
+key q
+wait_for_exit || fail "last quit prompted"
 echo "ALL PASS (work dir $WORK)"

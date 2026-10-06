@@ -43,6 +43,9 @@ class Document: NSDocument {
     }
 
     var pendingNotifications: [PendingNotification] = []
+    /// The file as it was when the buffer last matched it, so edits made on disk since then are
+    /// recognised as a conflict when the session is restored.
+    var diskStamp: Session.DiskStamp?
     weak var editViewController: EditViewController?
 
     /// Returns `true` if this document contains no data.
@@ -168,7 +171,7 @@ class Document: NSDocument {
         if let onDisk = try? Data(contentsOf: url), onDisk == Data(text.utf8) {
             content = .clean(path: url.path)
         } else {
-            content = .dirty(path: url.path, onDisk: FileSystemProbe().stamp(of: url.path), text: text)
+            content = .dirty(path: url.path, onDisk: diskStamp ?? FileSystemProbe().stamp(of: url.path), text: text)
         }
         return Session.Buffer(content: content, viewport: viewport)
     }
@@ -180,13 +183,17 @@ class Document: NSDocument {
         }
         guard let viewport = action.viewport else { return }
         if let caret = viewport.caret {
-            sendRpcAsync("gesture", params: ["line": caret.line, "col": caret.column, "ty": "point_select"])
+            placeCaret(line: caret.line, column: caret.column)
         } else {
             // Core answers the inserted text with a scroll_to that overrides any earlier scroll, so the
             // top line is restored by putting the caret there and realigning when that scroll_to arrives.
             editViewController?.restoredTopLine = viewport.topLine
-            sendRpcAsync("gesture", params: ["line": viewport.topLine, "col": 0, "ty": "point_select"])
+            placeCaret(line: viewport.topLine, column: 0)
         }
+    }
+
+    private func placeCaret(line: Int, column: Int) {
+        sendRpcAsync("gesture", params: ["line": line, "col": column, "ty": "point_select"])
     }
 
     func sendWillScroll(first: Int, last: Int) {
