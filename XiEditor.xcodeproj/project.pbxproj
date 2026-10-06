@@ -51,6 +51,7 @@
 		AE499DEB1C82BB2B002D68AF /* XiEditorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE499DEA1C82BB2B002D68AF /* XiEditorUITests.swift */; };
 		AE499DF91C82C835002D68AF /* RPCSending.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE499DF81C82C835002D68AF /* RPCSending.swift */; };
 		AEC4F6B31FF5AF130060E10E /* UnfairLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEC4F6B21FF5AF130060E10E /* UnfairLock.swift */; };
+		A1B2C3D4E5F607180000A002 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F607180000A001 /* Session.swift */; };
 		AEC4F6CA1FFB02F10060E10E /* Trace.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEC4F6C91FFB02F10060E10E /* Trace.swift */; };
 		AED22D761FE836880096E7C3 /* TextPlane.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED22D751FE836880096E7C3 /* TextPlane.swift */; };
 		AED22D781FE8404D0096E7C3 /* Renderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED22D771FE8404D0096E7C3 /* Renderer.swift */; };
@@ -63,6 +64,7 @@
 		AED22D861FE877000096E7C3 /* TextLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED22D851FE877000096E7C3 /* TextLine.swift */; };
 		AED23F181C83CBED002246CE /* EditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED23F171C83CBEC002246CE /* EditView.swift */; };
 		D803A9A421C7C4630042DE8F /* FindStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D803A9A321C7C4630042DE8F /* FindStatusTests.swift */; };
+		A1B2C3D4E5F607180000A004 /* SessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F607180000A003 /* SessionTests.swift */; };
 		D803A9A621C7CCB90042DE8F /* FindStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = D803A9A521C7CCB90042DE8F /* FindStatus.swift */; };
 		D80F2D8421CEB4F90090BDA0 /* XiViewProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80F2D8321CEB4F90090BDA0 /* XiViewProxy.swift */; };
 		D810EA5221BB291D00EABB21 /* ClientImplementation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D810EA5121BB291D00EABB21 /* ClientImplementation.swift */; };
@@ -190,6 +192,7 @@
 		AE499DEC1C82BB2B002D68AF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AE499DF81C82C835002D68AF /* RPCSending.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RPCSending.swift; sourceTree = "<group>"; };
 		AEC4F6B21FF5AF130060E10E /* UnfairLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnfairLock.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F607180000A001 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
 		AEC4F6C91FFB02F10060E10E /* Trace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trace.swift; sourceTree = "<group>"; };
 		AED22D751FE836880096E7C3 /* TextPlane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextPlane.swift; sourceTree = "<group>"; };
 		AED22D771FE8404D0096E7C3 /* Renderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Renderer.swift; sourceTree = "<group>"; };
@@ -202,6 +205,7 @@
 		AED22D851FE877000096E7C3 /* TextLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextLine.swift; sourceTree = "<group>"; };
 		AED23F171C83CBEC002246CE /* EditView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EditView.swift; sourceTree = "<group>"; };
 		D803A9A321C7C4630042DE8F /* FindStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindStatusTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F607180000A003 /* SessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTests.swift; sourceTree = "<group>"; };
 		D803A9A521C7CCB90042DE8F /* FindStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindStatus.swift; sourceTree = "<group>"; };
 		D80F2D8321CEB4F90090BDA0 /* XiViewProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XiViewProxy.swift; sourceTree = "<group>"; };
 		D810EA5121BB291D00EABB21 /* ClientImplementation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientImplementation.swift; sourceTree = "<group>"; };
@@ -388,6 +392,7 @@
 				AE168C5B1E4AD87B008249AE /* LineCache.swift */,
 				AE0243F51E4BDF8A00641BDA /* StyleMap.swift */,
 				AEC4F6B21FF5AF130060E10E /* UnfairLock.swift */,
+				A1B2C3D4E5F607180000A001 /* Session.swift */,
 				6057C52421A07F1900F6BD47 /* LoggingUtilities.swift */,
 				AEC4F6C91FFB02F10060E10E /* Trace.swift */,
 				6B90DD1B1F129C1A00DF3CE2 /* PluginCommand.swift */,
@@ -414,6 +419,7 @@
 				D8D37FFA21D003C9000C4A65 /* XiViewProxyTests.swift */,
 				AE499DDF1C82BB2B002D68AF /* XiEditorTests.swift */,
 				D803A9A321C7C4630042DE8F /* FindStatusTests.swift */,
+				A1B2C3D4E5F607180000A003 /* SessionTests.swift */,
 				AE499DE11C82BB2B002D68AF /* Info.plist */,
 			);
 			path = XiEditorTests;
@@ -767,6 +773,7 @@
 				AE499DD01C82BB2B002D68AF /* AppDelegate.swift in Sources */,
 				3FC496ED22447E37003D1533 /* ReplaceStatus.swift in Sources */,
 				AEC4F6B31FF5AF130060E10E /* UnfairLock.swift in Sources */,
+				A1B2C3D4E5F607180000A002 /* Session.swift in Sources */,
 				95FD9935218689A500C32AF1 /* MarkerBar.swift in Sources */,
 				28F1ED4A1EC4C735008839BE /* Search.swift in Sources */,
 				F5BDBF371DCA9D2C0042430B /* Document.swift in Sources */,
@@ -791,6 +798,7 @@
 			files = (
 				AE499DE01C82BB2B002D68AF /* XiEditorTests.swift in Sources */,
 				D803A9A421C7C4630042DE8F /* FindStatusTests.swift in Sources */,
+				A1B2C3D4E5F607180000A004 /* SessionTests.swift in Sources */,
 				D851299621CAFB450066B3BA /* SearchIntegrationTests.swift in Sources */,
 				D8D37FFB21D003C9000C4A65 /* XiViewProxyTests.swift in Sources */,
 				D8F1F44D21C988FA007FC254 /* TestClientImplementation.swift in Sources */,
