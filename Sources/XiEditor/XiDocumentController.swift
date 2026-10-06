@@ -21,6 +21,29 @@ class XiDocumentController: NSDocumentController, AlertPresenting {
     /// Lookup used when routing RPCs to views.
     fileprivate var openViews = [ViewIdentifier: Document]()
 
+    var hotExit: HotExit?
+
+    /// The quit gate. AppKit reviews unsaved documents here before it asks the app delegate whether
+    /// to terminate, so this is where a quit becomes a suspend. The stock review runs only when the
+    /// session could not be saved, so unsaved text is never dropped silently.
+    override func reviewUnsavedDocuments(withAlertTitle title: String?, cancellable: Bool, delegate: Any?,
+                                         didReviewAllSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
+        switch hotExit?.suspend() {
+        case .suspended?:
+            guard let delegate = delegate as AnyObject?, let selector = didReviewAllSelector,
+                let method = class_getMethodImplementation(object_getClass(delegate), selector) else { return }
+            typealias DidReviewAll = @convention(c) (AnyObject, Selector, NSDocumentController, Bool, UnsafeMutableRawPointer?) -> Void
+            unsafeBitCast(method, to: DidReviewAll.self)(delegate, selector, self, true, contextInfo)
+        case .refused(let reason)?:
+            super.reviewUnsavedDocuments(withAlertTitle: "Couldn't suspend: \(reason)", cancellable: cancellable,
+                                         delegate: delegate, didReviewAllSelector: didReviewAllSelector,
+                                         contextInfo: contextInfo)
+        case nil:
+            super.reviewUnsavedDocuments(withAlertTitle: title, cancellable: cancellable, delegate: delegate,
+                                         didReviewAllSelector: didReviewAllSelector, contextInfo: contextInfo)
+        }
+    }
+
     override init() {
         super.init()
         self.setup()
@@ -171,7 +194,25 @@ class XiDocumentController: NSDocumentController, AlertPresenting {
         fatalError("Xi does not currently support document duplication")
     }
 
-    func setupDocument(_ document: Document, forUrl url: URL?) {
+    /// Opens a window for a buffer from a suspended session. `completion` runs once core has answered
+    /// `new_view`, successfully or not.
+    @discardableResult
+    func restoreDocument(_ action: RestoreAction, completion: @escaping () -> Void) throws -> Document {
+        let document = try Document(type: defaultType ?? "")
+        let url = action.path.map { URL(fileURLWithPath: $0) }
+        document.fileURL = url
+        setupDocument(document, forUrl: url, completion: completion)
+        addDocument(document)
+        if #available(OSX 10.12, *) {
+            Document.tabbingMode = .disallowed
+        }
+        document.makeWindowControllers()
+        document.showWindows()
+        document.apply(action)
+        return document
+    }
+
+    func setupDocument(_ document: Document, forUrl url: URL?, completion: @escaping () -> Void = {}) {
         // we nil out this field to opt out of having NSDocument check for changes on disk when saving;
         // we (theoretically) do that check in xi-core.
         document.fileModificationDate = nil
@@ -186,6 +227,7 @@ class XiDocumentController: NSDocumentController, AlertPresenting {
                     document.close()
                     self.showAlert(with: error.message)
                 }
+                completion()
             }
         }
     }

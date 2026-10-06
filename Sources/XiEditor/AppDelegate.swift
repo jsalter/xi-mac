@@ -83,6 +83,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     var documentController: XiDocumentController!
 
+    var hotExit: HotExit!
+
     // This is connected via Cocoa bindings to the selection state
     // of the collecting menu item (i.e. whether or not there's a checkbox)
     // + the enabled state of the write trace menu item (greyed out when not
@@ -165,11 +167,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         xiCore.setTheme(themeName: preferredTheme)
         Trace.shared.trace("appWillLaunch", .main, .end)
         documentController = XiDocumentController()
-        
+        hotExit = HotExit(store: SessionStore(fileURL: defaultConfigDirectory.appendingPathComponent("session.json")),
+                          documents: documentController)
+        documentController.hotExit = hotExit
+
         // Set CLI Menu Title
         renameCliToggle()
     }
-    
+
+    func applicationDidFinishLaunching(_ aNotification: Notification) {
+        resumeSession()
+    }
+
+    // AppKit asks this before applicationDidFinishLaunching, so the session is restored here first.
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        resumeSession()
+        return !hotExit.restoredAnyWindow
+    }
+
+    /// Runs the restore once. The test host must neither restore nor overwrite the user's session.
+    private func resumeSession() {
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+            hotExit.resume()
+        }
+    }
+
     // MARK: - CLI Menu Items
     @IBOutlet weak var cliToggle: NSMenuItem!
     

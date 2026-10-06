@@ -73,6 +73,7 @@ class Document: NSDocument {
             Document.tabbingMode = .automatic
         }
 
+        windowController.window?.isRestorable = false
         windowController.window?.setFrame(newFrame, display: true)
         windowController.window?.minSize = Document.minWinSize
 
@@ -154,6 +155,31 @@ class Document: NSDocument {
                         "params": innerParams]] as [String: Any]
 
         xiCore.sendRpcAsync("plugin", params: params, callback: nil)
+    }
+
+    /// Reads the buffer from core and decides how it relates to its file. The text, not
+    /// `isDocumentEdited`, is the truth: that flag is updated on a later main-queue hop.
+    func sessionBuffer() throws -> Session.Buffer {
+        guard let identifier = coreViewIdentifier else {
+            return Session.Buffer(content: fileURL.map { .clean(path: $0.path) } ?? .untitled(text: ""), viewport: nil)
+        }
+        guard let text = xiCore.contents(of: identifier) else { throw TextUnreadableError(name: displayName) }
+        guard let url = fileURL else { return Session.Buffer(content: .untitled(text: text), viewport: nil) }
+        let content: Session.Content
+        if let onDisk = try? Data(contentsOf: url), onDisk == Data(text.utf8) {
+            content = .clean(path: url.path)
+        } else {
+            content = .dirty(path: url.path, onDisk: FileSystemProbe().stamp(of: url.path), text: text)
+        }
+        return Session.Buffer(content: content, viewport: nil)
+    }
+
+    /// Queues the suspended text behind the view's creation. Core answers the insert with
+    /// `pristine: false`, which marks the document edited.
+    func apply(_ action: RestoreAction) {
+        guard let text = action.replacement, !text.isEmpty else { return }
+        sendRpcAsync("select_all", params: [])
+        sendRpcAsync("insert", params: ["chars": text])
     }
 
     func sendWillScroll(first: Int, last: Int) {
