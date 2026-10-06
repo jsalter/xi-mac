@@ -74,6 +74,20 @@ class CoreRPCTests: XCTestCase {
         XCTAssertEqual(expected, connection.calls.first)
     }
 
+    func testContents() {
+        let connection = SyncTestConnection(result: .ok("abc\ndef" as AnyObject))
+        let xiCore = CoreConnection(rpcSender: connection)
+        XCTAssertEqual("abc\ndef", xiCore.contents(of: "foo"))
+        XCTAssertEqual("debug_get_contents", connection.method)
+        XCTAssertEqual(["view_id": "foo"], connection.params as? [String: String])
+    }
+
+    func testContentsIsNilWhenCoreReportsAnError() {
+        let error = RemoteError(json: ["code": 404 as AnyObject, "message": "No view for id foo" as AnyObject])!
+        let xiCore = CoreConnection(rpcSender: SyncTestConnection(result: .error(error)))
+        XCTAssertNil(xiCore.contents(of: "foo"))
+    }
+
     func testSetLanguage() {
         let connection = TestConnection<String>()
         let xiCore = CoreConnection(rpcSender: connection)
@@ -136,6 +150,26 @@ private class TestConnection<E: Equatable>: RPCSending {
 
     func sendRpc(_ method: String, params: Any) -> RpcResult {
         return .ok("not implemented in tests" as AnyObject)
+    }
+}
+
+private class SyncTestConnection: RPCSending {
+
+    let result: RpcResult
+    var method: String?
+    var params: Any?
+
+    init(result: RpcResult) {
+        self.result = result
+    }
+
+    func sendRpcAsync(_ method: String, params: Any, callback: RpcCallback?) {
+    }
+
+    func sendRpc(_ method: String, params: Any) -> RpcResult {
+        self.method = method
+        self.params = params
+        return result
     }
 }
 

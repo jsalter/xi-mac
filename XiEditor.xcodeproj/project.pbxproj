@@ -69,6 +69,7 @@
 		D80F2D8421CEB4F90090BDA0 /* XiViewProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80F2D8321CEB4F90090BDA0 /* XiViewProxy.swift */; };
 		D810EA5221BB291D00EABB21 /* ClientImplementation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D810EA5121BB291D00EABB21 /* ClientImplementation.swift */; };
 		D851299621CAFB450066B3BA /* SearchIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D851299521CAFB440066B3BA /* SearchIntegrationTests.swift */; };
+		A1B2C3D4E5F607180000A006 /* SessionRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F607180000A005 /* SessionRoundTripTests.swift */; };
 		D8D319F0218CB39A00D108D4 /* XiCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8D319EF218CB39A00D108D4 /* XiCore.swift */; };
 		D8D319F2218CBCD100D108D4 /* XiCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8D319F1218CBCD100D108D4 /* XiCoreTests.swift */; };
 		D8D37FFB21D003C9000C4A65 /* XiViewProxyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8D37FFA21D003C9000C4A65 /* XiViewProxyTests.swift */; };
@@ -210,6 +211,7 @@
 		D80F2D8321CEB4F90090BDA0 /* XiViewProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XiViewProxy.swift; sourceTree = "<group>"; };
 		D810EA5121BB291D00EABB21 /* ClientImplementation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientImplementation.swift; sourceTree = "<group>"; };
 		D851299521CAFB440066B3BA /* SearchIntegrationTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SearchIntegrationTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F607180000A005 /* SessionRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRoundTripTests.swift; sourceTree = "<group>"; };
 		D8D319EF218CB39A00D108D4 /* XiCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XiCore.swift; sourceTree = "<group>"; };
 		D8D319F1218CBCD100D108D4 /* XiCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XiCoreTests.swift; sourceTree = "<group>"; };
 		D8D37FFA21D003C9000C4A65 /* XiViewProxyTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = XiViewProxyTests.swift; sourceTree = "<group>"; };
@@ -466,6 +468,7 @@
 			children = (
 				D8D5FD6421CDA683003F1B87 /* the-golden-boys.txt */,
 				D851299521CAFB440066B3BA /* SearchIntegrationTests.swift */,
+				A1B2C3D4E5F607180000A005 /* SessionRoundTripTests.swift */,
 				D8F1F45221C9BFA1007FC254 /* SearchTester.swift */,
 				D8F1F44C21C988FA007FC254 /* TestClientImplementation.swift */,
 			);
@@ -800,6 +803,7 @@
 				D803A9A421C7C4630042DE8F /* FindStatusTests.swift in Sources */,
 				A1B2C3D4E5F607180000A004 /* SessionTests.swift in Sources */,
 				D851299621CAFB450066B3BA /* SearchIntegrationTests.swift in Sources */,
+				A1B2C3D4E5F607180000A006 /* SessionRoundTripTests.swift in Sources */,
 				D8D37FFB21D003C9000C4A65 /* XiViewProxyTests.swift in Sources */,
 				D8F1F44D21C988FA007FC254 /* TestClientImplementation.swift in Sources */,
 				D8F1F45321C9BFA1007FC254 /* SearchTester.swift in Sources */,

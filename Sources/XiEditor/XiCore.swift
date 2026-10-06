@@ -33,6 +33,9 @@ protocol XiCore: class {
     func closeView(identifier: ViewIdentifier)
     /// Saves the buffer associated with `view_id` to `file_path`.
     func save(identifier: ViewIdentifier, filePath: String)
+    /// Returns the whole buffer of the view, reflecting every edit sent before this call. Blocks until
+    /// core answers; nil if core has no such view.
+    func contents(of identifier: ViewIdentifier) -> String?
     /// Starts the named plugin for the given view.
     func start(plugin: String, in identifier: ViewIdentifier)
     /// Stops the named plugin for the given view.
@@ -88,6 +91,11 @@ final class CoreConnection: XiCore {
         let params = ["view_id": identifier,
                       "file_path": filePath]
         sendRpcAsync("save", params: params)
+    }
+
+    func contents(of identifier: ViewIdentifier) -> String? {
+        guard case .ok(let text) = sendRpc("debug_get_contents", params: ["view_id": identifier]) else { return nil }
+        return text as? String
     }
 
     func start(plugin: String, in identifier: ViewIdentifier) {

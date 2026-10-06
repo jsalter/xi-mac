@@ -18,14 +18,18 @@
 class TestClientImplementation: XiClient {
 
     typealias FindStatusAction = ([FindStatus]) -> Void
+    typealias UpdateAction = (String, UpdateParams) -> Void
 
     private let findStatusAction: FindStatusAction
+    private let updateAction: UpdateAction
 
-    init(findStatusAction: @escaping FindStatusAction) {
+    init(findStatusAction: @escaping FindStatusAction = { _ in }, updateAction: @escaping UpdateAction = { _, _ in }) {
         self.findStatusAction = findStatusAction
+        self.updateAction = updateAction
     }
 
     func update(viewIdentifier: String, params: UpdateParams, rev: UInt64?) {
+        updateAction(viewIdentifier, params)
     }
 
     func scroll(viewIdentifier: String, line: Int, column: Int) {
