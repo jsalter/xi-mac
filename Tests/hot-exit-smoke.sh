@@ -30,6 +30,20 @@ key() { ui "keystroke \"$1\" using command down"; sleep 0.6; }
 type_text() { ui "keystroke \"$1\""; sleep 0.4; }
 window_names() { ui "get name of every window"; }
 window_count() { ui "count windows"; }
+# Position and size of every window, front to back, as a flat list of numbers.
+frames() { ui "get {position, size} of every window"; }
+# The tab bar's selection flags for window $1, or "none" when it is not in a tab group.
+tab_values() {
+  ui "if (count of tab groups of window $1) is 0 then return \"none\"
+get value of every radio button of tab group 1 of window $1"
+}
+same_numbers() {
+  awk -v a="$1" -v b="$2" 'BEGIN {
+    n = split(a, x, /, */); m = split(b, y, /, */)
+    if (n == 0 || n != m) exit 1
+    for (i = 1; i <= n; i++) { d = x[i] - y[i]; if (d < 0) d = -d; if (d > 1) exit 1 }
+  }'
+}
 front_contents() { pbcopy < /dev/null; key a; key c; sleep 0.3; pbpaste; }
 
 launch() {
@@ -102,4 +116,52 @@ case "$(window_names)" in *"•"*|*"named.txt"*) pass "window titles mention the
 key q
 wait_for_exit || fail "second quit prompted"
 pass "second quit without a prompt"
+
+echo "--- tab group session"
+rm -f "$SESSION"
+launch
+type_text "tab one"
+key t
+type_text "tab two"
+key t
+type_text "tab three"
+# Select the middle tab so neither the first nor the last position can pass by default.
+ui "key code 33 using {command down, shift down}"; sleep 0.8
+ui "set position of window 1 to {120, 140}"
+ui "set size of window 1 to {700, 500}"
+key n
+type_text "separate window"
+ui "set position of window 1 to {300, 220}"
+ui "set size of window 1 to {620, 450}"
+FRAMES_BEFORE=$(frames)
+echo "frames before quit: $FRAMES_BEFORE"
+[ "$(window_count)" = 2 ] || fail "expected 2 windows (one tab group, one single) before quit, got $(window_count)"
+[ "$(tab_values 1)" = none ] || fail "window 1 should be the single window"
+[ "$(tab_values 2)" = "false, true, false" ] || fail "window 2 should be a three-tab group with the middle tab selected: $(tab_values 2)"
+key q
+wait_for_exit || fail "tab group quit prompted"
+
+launch
+echo "frames after relaunch: $(frames)"
+[ "$(window_count)" = 2 ] || fail "expected 2 windows after relaunch, got $(window_count)"
+pass "window count restored"
+[ "$(tab_values 1)" = none ] || fail "window 1 (frontmost group) should be the single window, got: $(tab_values 1)"
+pass "single window is frontmost"
+[ "$(tab_values 2)" = "false, true, false" ] || fail "tab group not restored with three tabs, middle selected: $(tab_values 2)"
+pass "tab group restored with three tabs and the middle one selected"
+same_numbers "$FRAMES_BEFORE" "$(frames)" || fail "window frames changed across the suspend"
+pass "frames restored within 1 point"
+[ "$(front_contents)" = "separate window" ] || fail "single window contents not restored"
+ui "perform action \"AXRaise\" of window 2"; sleep 0.5
+[ "$(front_contents)" = "tab two" ] || fail "selected tab is not the one that was selected: $(front_contents)"
+pass "selected tab shows its own text"
+ui "key code 33 using {command down, shift down}"; sleep 0.8
+[ "$(front_contents)" = "tab one" ] || fail "first tab text not restored in tab order: $(front_contents)"
+ui "key code 30 using {command down, shift down}"; sleep 0.4
+ui "key code 30 using {command down, shift down}"; sleep 0.8
+[ "$(front_contents)" = "tab three" ] || fail "third tab text not restored in tab order: $(front_contents)"
+pass "tabs restored in order"
+
+key q
+wait_for_exit || fail "final quit prompted"
 echo "ALL PASS (work dir $WORK)"

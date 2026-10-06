@@ -72,15 +72,39 @@ final class HotExit {
         restoredAnyWindow = !plan.isEmpty
         let total = plan.reduce(0) { $0 + $1.actions.count }
         phase = total == 0 ? .live : .restoring(pendingViews: total)
+        let screens = NSScreen.screens.map { $0.visibleFrame }
         for group in plan.reversed() {
+            var windows = [NSWindow]()
             for action in group.actions {
                 do {
-                    try documents.restoreDocument(action) { [weak self] in self?.documentIsReady() }
+                    let document = try documents.restoreDocument(action) { [weak self] in self?.documentIsReady() }
+                    if let window = document.windowControllers.first?.window { windows.append(window) }
                 } catch {
                     documentIsReady()
                 }
             }
+            arrange(windows, selected: group.selectedTab, frame: Session.fit(group.frame, to: screens))
         }
+    }
+
+    /// Joins `windows` into one native tab group in order, then shows it. Called back to front, so the
+    /// first group ends up frontmost.
+    private func arrange(_ windows: [NSWindow], selected: Int, frame: CGRect) {
+        guard let anchor = windows.first else { return }
+        if #available(OSX 10.12, *) {
+            // Each tab goes right after the previous one, which keeps the stored order.
+            var previous = anchor
+            for window in windows.dropFirst() {
+                previous.addTabbedWindow(window, ordered: .above)
+                previous = window
+            }
+        }
+        let front = windows[min(selected, windows.count - 1)]
+        if #available(OSX 10.13, *) {
+            front.tabGroup?.selectedWindow = front
+        }
+        front.makeKeyAndOrderFront(nil)
+        front.setFrame(frame, display: true)
     }
 
     private func documentIsReady() {
@@ -90,11 +114,29 @@ final class HotExit {
 
     private func capture() throws -> Session {
         var groups = [Session.TabGroup]()
-        for window in NSApp.orderedWindows {
-            guard let document = window.windowController?.document as? Document else { continue }
-            groups.append(Session.TabGroup(frame: window.frame, tabs: [try document.sessionBuffer()], selectedTab: 0))
+        var grouped = Set<NSWindow>()
+        for window in NSApp.orderedWindows where !grouped.contains(window) && document(of: window) != nil {
+            let members = tabs(of: window)
+            grouped.formUnion(members)
+            let buffers = try members.compactMap { try document(of: $0)?.sessionBuffer() }
+            groups.append(Session.TabGroup(frame: window.frame, tabs: buffers, selectedTab: selectedIndex(of: window, in: members)))
         }
         return Session(groups: groups)
+    }
+
+    private func document(of window: NSWindow) -> Document? {
+        return window.windowController?.document as? Document
+    }
+
+    /// The document windows sharing `window`'s native tab group, in tab order.
+    private func tabs(of window: NSWindow) -> [NSWindow] {
+        guard #available(OSX 10.12, *), let tabbed = window.tabbedWindows else { return [window] }
+        return tabbed.filter { document(of: $0) != nil }
+    }
+
+    private func selectedIndex(of window: NSWindow, in members: [NSWindow]) -> Int {
+        guard #available(OSX 10.13, *), let selected = window.tabGroup?.selectedWindow else { return 0 }
+        return members.firstIndex(of: selected) ?? 0
     }
 
     private func resolvingConflicts(in group: Session.PlannedGroup) -> Session.PlannedGroup {
