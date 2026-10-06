@@ -108,8 +108,38 @@ struct RestoreAction: Equatable {
     /// Text to `select_all` and `insert` once the view exists.
     var replacement: String?
     var viewport: Session.Viewport?
-    /// A line for the user explaining a non-obvious restore.
-    var note: String?
+    /// Set when the user has to decide what this buffer becomes before it is opened.
+    var conflict: Conflict?
+
+    enum Conflict: Equatable {
+        case changedOnDisk(path: String)
+    }
+}
+
+enum ConflictChoice {
+    case keepSuspendedEdits
+    case useVersionOnDisk
+    case keepBoth
+}
+
+extension RestoreAction {
+    /// The actions that carry out `choice`. The viewport describes the suspended text, so it goes with
+    /// the suspended text and is dropped when that text is.
+    func resolved(_ choice: ConflictChoice) -> [RestoreAction] {
+        guard conflict != nil else { return [self] }
+        let suspended = RestoreAction(path: path, replacement: replacement, viewport: viewport, conflict: nil)
+        let onDisk = RestoreAction(path: path, replacement: nil, viewport: nil, conflict: nil)
+        switch choice {
+        case .keepSuspendedEdits:
+            return [suspended]
+        case .useVersionOnDisk:
+            return [onDisk]
+        case .keepBoth:
+            var untitled = suspended
+            untitled.path = nil
+            return [onDisk, untitled]
+        }
+    }
 }
 
 protocol DiskProbing {
@@ -130,8 +160,8 @@ extension Session {
     typealias PlannedGroup = (frame: CGRect, actions: [RestoreAction], selectedTab: Int)
 
     /// Decides each buffer's action. A clean buffer whose file is gone is dropped (and a group that
-    /// empties with it). A dirty buffer whose file changed since the suspend comes back untitled so a later
-    /// save cannot overwrite the newer file; one whose file is missing reopens at its path.
+    /// empties with it). A dirty buffer whose file changed since the suspend is marked as a conflict, so a
+    /// later save cannot silently overwrite the newer file; one whose file is missing reopens at its path.
     func restorePlan(disk: DiskProbing) -> [PlannedGroup] {
         return groups.compactMap { group in
             var actions = [RestoreAction]()
@@ -150,18 +180,15 @@ extension Session {
     private static func action(for buffer: Buffer, disk: DiskProbing) -> RestoreAction? {
         switch buffer.content {
         case .untitled(let text):
-            return RestoreAction(path: nil, replacement: text, viewport: buffer.viewport, note: nil)
+            return RestoreAction(path: nil, replacement: text, viewport: buffer.viewport, conflict: nil)
         case .clean(let path):
             guard disk.stamp(of: path) != .missing else { return nil }
-            return RestoreAction(path: path, replacement: nil, viewport: buffer.viewport, note: nil)
+            return RestoreAction(path: path, replacement: nil, viewport: buffer.viewport, conflict: nil)
         case .dirty(let path, let stored, let text):
             let current = disk.stamp(of: path)
-            if current == .missing || current == stored {
-                return RestoreAction(path: path, replacement: text, viewport: buffer.viewport, note: nil)
-            }
-            let name = (path as NSString).lastPathComponent
-            return RestoreAction(path: nil, replacement: text, viewport: buffer.viewport,
-                                 note: "\(name) changed on disk; suspended edits reopened as a new buffer")
+            let changed = current != .missing && current != stored
+            return RestoreAction(path: path, replacement: text, viewport: buffer.viewport,
+                                 conflict: changed ? .changedOnDisk(path: path) : nil)
         }
     }
 

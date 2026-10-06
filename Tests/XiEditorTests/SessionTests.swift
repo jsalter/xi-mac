@@ -100,14 +100,14 @@ class SessionTests: XCTestCase {
         let plan = session([.untitled(text: "scratch")]).restorePlan(disk: FakeDisk(stamps: [:]))
         XCTAssertEqual(1, plan.count)
         XCTAssertEqual(frame, plan[0].frame)
-        XCTAssertEqual([RestoreAction(path: nil, replacement: "scratch", viewport: nil, note: nil)], plan[0].actions)
+        XCTAssertEqual([RestoreAction(path: nil, replacement: "scratch", viewport: nil, conflict: nil)], plan[0].actions)
     }
 
     func testCleanReopensAtPathWhetherOrNotItChanged() {
         let content = Session.Content.clean(path: "/a/c.txt")
         for stamp in [stampA, stampB] {
             let plan = session([content]).restorePlan(disk: FakeDisk(stamps: ["/a/c.txt": stamp]))
-            XCTAssertEqual([RestoreAction(path: "/a/c.txt", replacement: nil, viewport: nil, note: nil)], plan[0].actions)
+            XCTAssertEqual([RestoreAction(path: "/a/c.txt", replacement: nil, viewport: nil, conflict: nil)], plan[0].actions)
         }
     }
 
@@ -118,35 +118,65 @@ class SessionTests: XCTestCase {
     func testDirtyKeepsPathWhenDiskUnchanged() {
         let plan = session([.dirty(path: "/a/d.txt", onDisk: stampA, text: "edit")])
             .restorePlan(disk: FakeDisk(stamps: ["/a/d.txt": stampA]))
-        XCTAssertEqual([RestoreAction(path: "/a/d.txt", replacement: "edit", viewport: nil, note: nil)], plan[0].actions)
+        XCTAssertEqual([RestoreAction(path: "/a/d.txt", replacement: "edit", viewport: nil, conflict: nil)], plan[0].actions)
     }
 
-    func testDirtyChangedOnDiskComesBackUntitledWithNote() {
+    func testDirtyChangedOnDiskKeepsPathAndTextAndFlagsConflict() {
         let plan = session([.dirty(path: "/a/d.txt", onDisk: stampA, text: "edit")])
             .restorePlan(disk: FakeDisk(stamps: ["/a/d.txt": stampB]))
-        let expected = RestoreAction(path: nil, replacement: "edit", viewport: nil,
-                                     note: "d.txt changed on disk; suspended edits reopened as a new buffer")
+        let expected = RestoreAction(path: "/a/d.txt", replacement: "edit", viewport: nil,
+                                     conflict: .changedOnDisk(path: "/a/d.txt"))
         XCTAssertEqual([expected], plan[0].actions)
     }
 
-    func testDirtyCreatedOnDiskSinceSuspendComesBackUntitled() {
+    func testDirtyCreatedOnDiskSinceSuspendIsAConflict() {
         let plan = session([.dirty(path: "/a/d.txt", onDisk: .missing, text: "edit")])
             .restorePlan(disk: FakeDisk(stamps: ["/a/d.txt": stampA]))
-        XCTAssertNil(plan[0].actions[0].path)
-        XCTAssertNotNil(plan[0].actions[0].note)
+        XCTAssertEqual(.changedOnDisk(path: "/a/d.txt"), plan[0].actions[0].conflict)
     }
 
     func testDirtyWithMissingFileReopensAtPathWithText() {
         for stored in [stampA, Session.DiskStamp.missing] {
             let plan = session([.dirty(path: "/a/d.txt", onDisk: stored, text: "edit")])
                 .restorePlan(disk: FakeDisk(stamps: [:]))
-            XCTAssertEqual([RestoreAction(path: "/a/d.txt", replacement: "edit", viewport: nil, note: nil)],
+            XCTAssertEqual([RestoreAction(path: "/a/d.txt", replacement: "edit", viewport: nil, conflict: nil)],
                            plan[0].actions)
         }
     }
 
+    // MARK: - resolved
+
+    let viewport = Session.Viewport(topLine: 7, caret: Session.Caret(line: 8, column: 1))
+
+    var conflicted: RestoreAction {
+        return RestoreAction(path: "/a/d.txt", replacement: "edit", viewport: viewport,
+                             conflict: .changedOnDisk(path: "/a/d.txt"))
+    }
+
+    func testKeepSuspendedEditsBindsTextToPath() {
+        let expected = RestoreAction(path: "/a/d.txt", replacement: "edit", viewport: viewport, conflict: nil)
+        XCTAssertEqual([expected], conflicted.resolved(.keepSuspendedEdits))
+    }
+
+    func testUseVersionOnDiskDropsSuspendedEdits() {
+        let expected = RestoreAction(path: "/a/d.txt", replacement: nil, viewport: nil, conflict: nil)
+        XCTAssertEqual([expected], conflicted.resolved(.useVersionOnDisk))
+    }
+
+    func testKeepBothOpensDiskVersionThenSuspendedEditsUntitled() {
+        let onDisk = RestoreAction(path: "/a/d.txt", replacement: nil, viewport: nil, conflict: nil)
+        let suspended = RestoreAction(path: nil, replacement: "edit", viewport: viewport, conflict: nil)
+        XCTAssertEqual([onDisk, suspended], conflicted.resolved(.keepBoth))
+    }
+
+    func testResolvingAnActionWithoutConflictChangesNothing() {
+        let plain = RestoreAction(path: "/a/d.txt", replacement: "edit", viewport: viewport, conflict: nil)
+        for choice in [ConflictChoice.keepSuspendedEdits, .useVersionOnDisk, .keepBoth] {
+            XCTAssertEqual([plain], plain.resolved(choice))
+        }
+    }
+
     func testViewportIsCarriedThrough() {
-        let viewport = Session.Viewport(topLine: 7, caret: Session.Caret(line: 8, column: 1))
         let original = Session(groups: [Session.TabGroup(
             frame: frame,
             tabs: [Session.Buffer(content: .untitled(text: "a"), viewport: viewport)],
